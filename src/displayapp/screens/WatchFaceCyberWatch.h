@@ -32,15 +32,16 @@ namespace Pinetime {
       private:
         enum class Level : uint8_t { Offline, Fine, Caution, Danger };
 
-        static constexpr uint16_t tickMs = 100; // one new line point per tick
-        static constexpr lv_coord_t stepX = 5;  // pixels between points: scrolls 50 px a second
+        static constexpr uint16_t tickMs = 100; // target screen update rate (10 per second)
+        static constexpr uint16_t pointMs = 33; // one point per 33 ms, fine enough for a sharp spike
+        static constexpr lv_coord_t stepX = 2;  // pixels per point: scrolls 60 px a second
         static constexpr uint8_t pointCount = 240 / stepX + 1;
         static constexpr lv_coord_t baselineY = 132;
         static constexpr uint16_t minimumSpikeGapMs = 300;
         static constexpr uint16_t offlineAfterMs = 5000; // no reading this long: OFFLINE
         static constexpr uint8_t hysteresisBpm = 3;      // stops flicker right at a cutoff
 
-        void UpdateLevel(uint8_t bpm, bool reading);
+        void UpdateLevel(uint8_t bpm, bool reading, uint32_t elapsedMs);
         void ApplyLevel();
         int8_t NextOffset(bool reading);
 
@@ -56,6 +57,8 @@ namespace Pinetime {
         Level level = Level::Offline;
         bool levelShown = false;
         uint32_t noiseSeed = 12345;
+        uint32_t lastTick = 0;
+        uint32_t pendingMs = 0; // time not yet turned into points
 
         lv_obj_t* labelTitle;
         lv_obj_t* line;

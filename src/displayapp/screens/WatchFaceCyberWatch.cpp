@@ -1,4 +1,5 @@
 #include "displayapp/screens/WatchFaceCyberWatch.h"
+#include <algorithm>
 #include "components/heartrate/HeartRateController.h"
 #include "components/settings/Settings.h"
 #include "displayapp/InfiniTimeTheme.h"
@@ -6,9 +7,10 @@
 using namespace Pinetime::Applications::Screens;
 
 namespace {
-  // One heartbeat on the line, a point every 100 ms (5 px), in pixels from the
-  // baseline (negative is up): small dip, tall spike, deep dip, then a bump.
-  constexpr int8_t spikeShape[] = {7, -62, 26, 0, -4, -10, -6, 0};
+  // One heartbeat on the line, a point every 33 ms (2 px), in pixels from the
+  // baseline (negative is up): small dip, tall narrow spike, deep dip, a short
+  // flat stretch, then a low rounded bump.
+  constexpr int8_t spikeShape[] = {4, 6, -28, -62, -20, 18, 26, 8, 0, 0, 0, 0, -3, -6, -8, -8, -6, -3, 0};
   constexpr int8_t spikeLength = sizeof(spikeShape) / sizeof(spikeShape[0]);
 
   constexpr lv_color_t red = LV_COLOR_MAKE(0xff, 0x10, 0x10);
@@ -28,7 +30,7 @@ WatchFaceCyberWatch::WatchFaceCyberWatch(Controllers::HeartRateController& heart
   }
   line = lv_line_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_line_width(line, LV_LINE_PART_MAIN, LV_STATE_DEFAULT, 3);
-  lv_obj_set_style_local_line_rounded(line, LV_LINE_PART_MAIN, LV_STATE_DEFAULT, false);
+  lv_obj_set_style_local_line_rounded(line, LV_LINE_PART_MAIN, LV_STATE_DEFAULT, true);
   lv_line_set_points(line, points.data(), pointCount);
   lv_obj_set_pos(line, 0, 0);
 
@@ -42,9 +44,12 @@ WatchFaceCyberWatch::WatchFaceCyberWatch(Controllers::HeartRateController& heart
 
   // Keep the sensor on, and fast, while this screen shows
   lastBeatCount = heartRateController.BeatCount();
-  heartRateController.Enable();
+  if (heartRateController.State() == Controllers::HeartRateController::States::Stopped) {
+    heartRateController.Enable();
+  }
   heartRateController.SetFastSampling(true);
 
+  lastTick = lv_tick_get();
   taskRefresh = lv_task_create(RefreshTaskCallback, tickMs, LV_TASK_PRIO_MID, this);
 }
 
@@ -55,17 +60,22 @@ WatchFaceCyberWatch::~WatchFaceCyberWatch() {
 }
 
 void WatchFaceCyberWatch::Refresh() {
+  // Go by the clock, not by frames, so the line keeps a steady speed even if
+  // a redraw runs slow
+  const uint32_t elapsedMs = std::min<uint32_t>(lv_tick_elaps(lastTick), 1000);
+  lastTick = lv_tick_get();
+
   const uint8_t bpm = heartRateController.HeartRate();
   const bool reading = heartRateController.State() == Controllers::HeartRateController::States::Running && bpm > 0;
 
   if (reading) {
     sinceReadingMs = 0;
   } else if (sinceReadingMs < offlineAfterMs) {
-    sinceReadingMs += tickMs;
+    sinceReadingMs += elapsedMs;
   }
-  sinceSpikeMs += tickMs;
+  sinceSpikeMs += elapsedMs;
 
-  // A beat was detected since the last tick
+  // A beat was detected since the last update
   const uint32_t beatCount = heartRateController.BeatCount();
   bool beat = beatCount != lastBeatCount;
   lastBeatCount = beatCount;
@@ -81,14 +91,21 @@ void WatchFaceCyberWatch::Refresh() {
     sinceSpikeMs = 0;
   }
 
-  // Scroll left one point and add the new one on the right
-  for (uint8_t i = 0; i + 1 < pointCount; i++) {
-    points[i].y = points[i + 1].y;
+  // Scroll left by however many points that much time is worth, and add them on the right
+  pendingMs += elapsedMs;
+  const uint8_t newPoints = static_cast<uint8_t>(std::min<uint32_t>(pendingMs / pointMs, pointCount));
+  pendingMs -= newPoints * pointMs;
+  if (newPoints > 0) {
+    for (uint8_t i = 0; i + newPoints < pointCount; i++) {
+      points[i].y = points[i + newPoints].y;
+    }
+    for (uint8_t i = pointCount - newPoints; i < pointCount; i++) {
+      points[i].y = static_cast<lv_coord_t>(baselineY + NextOffset(sinceReadingMs < offlineAfterMs));
+    }
+    lv_line_set_points(line, points.data(), pointCount);
   }
-  points[pointCount - 1].y = static_cast<lv_coord_t>(baselineY + NextOffset(sinceReadingMs < offlineAfterMs));
-  lv_line_set_points(line, points.data(), pointCount);
 
-  UpdateLevel(bpm, reading);
+  UpdateLevel(bpm, reading, elapsedMs);
 }
 
 int8_t WatchFaceCyberWatch::NextOffset(bool alive) {
@@ -104,10 +121,10 @@ int8_t WatchFaceCyberWatch::NextOffset(bool alive) {
   }
   // A little jitter so the line looks live between beats
   noiseSeed = noiseSeed * 1103515245u + 12345u;
-  return static_cast<int8_t>(static_cast<int>((noiseSeed >> 16) % 5) - 2);
+  return static_cast<int8_t>(static_cast<int>((noiseSeed >> 16) % 3) - 1);
 }
 
-void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading) {
+void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading, uint32_t elapsedMs) {
   Level newLevel = level;
 
   if (sinceReadingMs >= offlineAfterMs) {
@@ -118,7 +135,8 @@ void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading) {
     if (smoothedBpm == 0.0f) {
       smoothedBpm = bpm;
     } else {
-      smoothedBpm += (static_cast<float>(bpm) - smoothedBpm) * 0.03f;
+      // About 3 seconds to catch up
+      smoothedBpm += (static_cast<float>(bpm) - smoothedBpm) * std::min(1.0f, static_cast<float>(elapsedMs) / 3000.0f);
     }
 
     const float caution = settingsController.GetAgentCautionBpm();
