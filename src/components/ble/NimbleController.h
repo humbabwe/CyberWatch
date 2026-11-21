@@ -9,9 +9,11 @@
 #undef min
 #include "components/ble/AlertNotificationClient.h"
 #include "components/ble/AlertNotificationService.h"
+#include "components/ble/AppleNotificationCenterClient.h"
 #include "components/ble/BatteryInformationService.h"
 #include "components/ble/CurrentTimeClient.h"
 #include "components/ble/CurrentTimeService.h"
+#include "components/ble/CyberAlertStore.h"
 #include "components/ble/DeviceInformationService.h"
 #include "components/ble/DfuService.h"
 #include "components/ble/FSService.h"
@@ -67,6 +69,10 @@ namespace Pinetime {
         return anService;
       };
 
+      Pinetime::Controllers::CyberAlertStore& cyberAlerts() {
+        return cyberAlertStore;
+      };
+
       Pinetime::Controllers::SimpleWeatherService& weather() {
         return weatherService;
       };
@@ -85,7 +91,7 @@ namespace Pinetime {
       void PersistBond(struct ble_gap_conn_desc& desc);
       void RestoreBond();
 
-      static constexpr const char* deviceName = "InfiniTime";
+      static constexpr const char* deviceName = "CyberWatch";
       Pinetime::System::SystemTask& systemTask;
       Ble& bleController;
       DateTime& dateTimeController;
@@ -97,6 +103,8 @@ namespace Pinetime {
       CurrentTimeClient currentTimeClient;
       AlertNotificationService anService;
       AlertNotificationClient alertNotificationClient;
+      CyberAlertStore cyberAlertStore;
+      AppleNotificationCenterClient ancsClient;
       CurrentTimeService currentTimeService;
       MusicService musicService;
       SimpleWeatherService weatherService;

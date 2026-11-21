@@ -24,6 +24,8 @@ namespace Pinetime {
         AlarmTriggered,
         Chime,
         BleRadioEnableToggle,
+        // CyberWatch: a text arrived (see CyberAlertStore)
+        CyberAlert,
       };
     }
   }

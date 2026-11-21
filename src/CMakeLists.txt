@@ -395,6 +395,7 @@ list(APPEND SOURCE_FILES
         displayapp/screens/Dice.cpp
         displayapp/screens/Tennis.cpp
         displayapp/screens/PassKey.cpp
+        displayapp/screens/CyberAlert.cpp
         displayapp/screens/Error.cpp
         displayapp/screens/Alarm.cpp
         displayapp/screens/Styles.cpp
@@ -457,6 +458,8 @@ list(APPEND SOURCE_FILES
         components/ble/DeviceInformationService.cpp
         components/ble/CurrentTimeClient.cpp
         components/ble/AlertNotificationClient.cpp
+        components/ble/AppleNotificationCenterClient.cpp
+        components/ble/CyberAlertStore.cpp
         components/ble/DfuService.cpp
         components/ble/CurrentTimeService.cpp
         components/ble/AlertNotificationService.cpp
@@ -528,6 +531,8 @@ list(APPEND RECOVERY_SOURCE_FILES
         components/ble/DeviceInformationService.cpp
         components/ble/CurrentTimeClient.cpp
         components/ble/AlertNotificationClient.cpp
+        components/ble/AppleNotificationCenterClient.cpp
+        components/ble/CyberAlertStore.cpp
         components/ble/DfuService.cpp
         components/ble/CurrentTimeService.cpp
         components/ble/AlertNotificationService.cpp
@@ -653,6 +658,8 @@ set(INCLUDE_FILES
         components/ble/DeviceInformationService.h
         components/ble/CurrentTimeClient.h
         components/ble/AlertNotificationClient.h
+        components/ble/AppleNotificationCenterClient.h
+        components/ble/CyberAlertStore.h
         components/ble/DfuService.h
         components/firmwarevalidator/FirmwareValidator.h
         components/ble/BatteryInformationService.h

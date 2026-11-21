@@ -29,6 +29,7 @@
 #include "displayapp/screens/Dice.h"
 #include "displayapp/screens/Weather.h"
 #include "displayapp/screens/PassKey.h"
+#include "displayapp/screens/CyberAlert.h"
 #include "displayapp/screens/Error.h"
 #include "displayapp/screens/Calculator.h"
 
@@ -321,7 +322,7 @@ void DisplayApp::Refresh() {
         }
         // Since the active screen is not really an app, go back to Clock.
         if (currentApp == Apps::Launcher || currentApp == Apps::Notifications || currentApp == Apps::NotificationsPreview ||
-            currentApp == Apps::QuickSettings || currentApp == Apps::Settings) {
+            currentApp == Apps::QuickSettings || currentApp == Apps::Settings || currentApp == Apps::CyberAlert) {
           LoadScreen(Apps::Clock, DisplayApp::FullRefreshDirections::None);
           appStackDirections.Reset();
           returnAppStack.Reset();
@@ -364,6 +365,20 @@ void DisplayApp::Refresh() {
         lv_disp_trig_activity(nullptr);
         ApplyBrightness();
         state = States::Running;
+        // CyberWatch: a text is waiting, so play it now that the wrist is raised (or the watch woken)
+        if (systemTask->nimble().cyberAlerts().HasPending() && currentApp != Apps::CyberAlert) {
+          LoadNewScreen(Apps::CyberAlert, DisplayApp::FullRefreshDirections::Down);
+        }
+        break;
+      case Messages::CyberAlert:
+        // SOS buzz on arrival. The screen stays off; the text plays on the next wake.
+        if (settingsController.GetNotificationStatus() == Pinetime::Controllers::Settings::Notification::On) {
+          motorController.PlaySos();
+        }
+        if (state == States::Running && currentApp != Apps::CyberAlert) {
+          // Screen is already on, so play it straight away
+          LoadNewScreen(Apps::CyberAlert, DisplayApp::FullRefreshDirections::Down);
+        }
         break;
       case Messages::UpdateBleConnection:
         // Only used for recovery firmware
@@ -565,6 +580,10 @@ void DisplayApp::LoadScreen(Apps app, DisplayApp::FullRefreshDirections directio
       currentScreen = std::make_unique<Screens::PassKey>(bleController.GetPairingKey());
       break;
 
+    case Apps::CyberAlert:
+      currentScreen = std::make_unique<Screens::CyberAlert>(systemTask->nimble().cyberAlerts(), *systemTask);
+      break;
+
     case Apps::Notifications:
       currentScreen = std::make_unique<Screens::Notifications>(this,
                                                                notificationManager,
@@ -678,7 +697,7 @@ void DisplayApp::PushMessage(Messages msg) {
     // Make xQueueSend() non-blocking if the message is a Notification message. We do this to avoid
     // deadlock between SystemTask and DisplayApp when their respective message queues are getting full
     // when a lot of notifications are received on a very short time span.
-    if (msg == Messages::NewNotification) {
+    if (msg == Messages::NewNotification || msg == Messages::CyberAlert) {
       timeout = static_cast<TickType_t>(0);
     }
 

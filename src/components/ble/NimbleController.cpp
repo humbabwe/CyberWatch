@@ -41,6 +41,7 @@ NimbleController::NimbleController(Pinetime::System::SystemTask& systemTask,
     currentTimeClient {dateTimeController},
     anService {systemTask, notificationManager},
     alertNotificationClient {systemTask, notificationManager},
+    ancsClient {systemTask, cyberAlertStore},
     currentTimeService {dateTimeController},
     musicService {*this},
     weatherService {dateTimeController},
@@ -49,7 +50,7 @@ NimbleController::NimbleController(Pinetime::System::SystemTask& systemTask,
     heartRateService {*this, heartRateController},
     motionService {*this, motionController},
     fsService {systemTask, fs},
-    serviceDiscovery({&currentTimeClient, &alertNotificationClient}) {
+    serviceDiscovery({&currentTimeClient, &alertNotificationClient, &ancsClient}) {
 }
 
 void nimble_on_reset(int reason) {
@@ -138,11 +139,9 @@ void NimbleController::Init() {
 
 void NimbleController::StartAdvertising() {
   struct ble_gap_adv_params adv_params;
-  struct ble_hs_adv_fields fields;
   struct ble_hs_adv_fields rsp_fields;
 
   memset(&adv_params, 0, sizeof(adv_params));
-  memset(&fields, 0, sizeof(fields));
   memset(&rsp_fields, 0, sizeof(rsp_fields));
 
   adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
@@ -157,21 +156,39 @@ void NimbleController::StartAdvertising() {
     adv_params.itvl_max = 1651;
   }
 
-  fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-  fields.uuids16 = &HeartRateService::heartRateServiceUuid;
-  fields.num_uuids16 = 1;
-  fields.uuids16_is_complete = 1;
-  fields.uuids128 = &DfuService::serviceUuid;
-  fields.num_uuids128 = 1;
-  fields.uuids128_is_complete = 1;
-  fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+  // CyberWatch: the advertisement carries an ANCS "service solicitation" so the
+  // watch shows up in the iPhone's Settings > Bluetooth and can pair from there.
+  // NimBLE's ble_hs_adv_fields has no solicitation field, so the packet is built
+  // by hand. The 31-byte packet can't also hold the DFU UUID, so that moved to
+  // the scan response (phones scanning for it still see it there).
+  uint8_t advData[BLE_HS_ADV_MAX_SZ];
+  uint8_t advLength = 0;
+
+  advData[advLength++] = 2;
+  advData[advLength++] = BLE_HS_ADV_TYPE_FLAGS;
+  advData[advLength++] = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
+  advData[advLength++] = 3;
+  advData[advLength++] = BLE_HS_ADV_TYPE_COMP_UUIDS16;
+  advData[advLength++] = HeartRateService::heartRateServiceUuid.value & 0xff;
+  advData[advLength++] = HeartRateService::heartRateServiceUuid.value >> 8;
+
+  advData[advLength++] = 1 + sizeof(AppleNotificationCenterClient::ancsServiceUuid.value);
+  advData[advLength++] = BLE_HS_ADV_TYPE_SOL_UUIDS128;
+  memcpy(&advData[advLength],
+         AppleNotificationCenterClient::ancsServiceUuid.value,
+         sizeof(AppleNotificationCenterClient::ancsServiceUuid.value));
+  advLength += sizeof(AppleNotificationCenterClient::ancsServiceUuid.value);
 
   rsp_fields.name = reinterpret_cast<const uint8_t*>(deviceName);
   rsp_fields.name_len = strlen(deviceName);
   rsp_fields.name_is_complete = 1;
+  rsp_fields.uuids128 = &DfuService::serviceUuid;
+  rsp_fields.num_uuids128 = 1;
+  rsp_fields.uuids128_is_complete = 1;
 
   int rc;
-  rc = ble_gap_adv_set_fields(&fields);
+  rc = ble_gap_adv_set_data(advData, advLength);
   ASSERT(rc == 0);
 
   rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
@@ -200,6 +217,7 @@ int NimbleController::OnGAPEvent(ble_gap_event* event) {
         /* Connection failed; resume advertising. */
         currentTimeClient.Reset();
         alertNotificationClient.Reset();
+        ancsClient.Reset();
         connectionHandle = BLE_HS_CONN_HANDLE_NONE;
         bleController.Disconnect();
         fastAdvCount = 0;
@@ -223,6 +241,7 @@ int NimbleController::OnGAPEvent(ble_gap_event* event) {
 
       currentTimeClient.Reset();
       alertNotificationClient.Reset();
+      ancsClient.Reset();
       connectionHandle = BLE_HS_CONN_HANDLE_NONE;
       if (bleController.IsConnected()) {
         bleController.Disconnect();
@@ -264,6 +283,8 @@ int NimbleController::OnGAPEvent(ble_gap_event* event) {
                      desc.sec_state.authenticated,
                      desc.sec_state.bonded,
                      desc.sec_state.key_size);
+
+        ancsClient.OnEncryptionChanged(event->enc_change.conn_handle);
       }
       break;
 
@@ -370,6 +391,7 @@ int NimbleController::OnGAPEvent(ble_gap_event* event) {
                    notifSize);
 
       alertNotificationClient.OnNotification(event);
+      ancsClient.OnNotification(event);
     } break;
 
     case BLE_GAP_EVENT_NOTIFY_TX:

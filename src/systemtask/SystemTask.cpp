@@ -231,6 +231,10 @@ void SystemTask::Work() {
             displayApp.PushMessage(Pinetime::Applications::Display::Messages::NewNotification);
           }
           break;
+        case Messages::OnCyberAlert:
+          // CyberWatch: don't wake the screen; DisplayApp buzzes SOS and plays the text on the next wake
+          displayApp.PushMessage(Pinetime::Applications::Display::Messages::CyberAlert);
+          break;
         case Messages::SetOffAlarm:
           GoToRunning();
           displayApp.PushMessage(Pinetime::Applications::Display::Messages::AlarmTriggered);
