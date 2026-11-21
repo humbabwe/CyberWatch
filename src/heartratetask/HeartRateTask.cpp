@@ -46,7 +46,7 @@ TickType_t HeartRateTask::CurrentTaskDelay() {
                   "Overflow");
     TickType_t elapsedTarget = Utility::RoundedDiv(static_cast<uint32_t>(configTICK_RATE_HZ / 2) * (static_cast<uint32_t>(count) + 1U) *
                                                      static_cast<uint32_t>((Pinetime::Controllers::Ppg::deltaTms)),
-                                                   static_cast<uint32_t>(1000 / 2));
+                                                   static_cast<uint32_t>(1000 / 2) * SamplesPerPpgSample());
 
     // On count overflow, reset both count and start time
     // Count is 16bit to avoid overflow in elapsedTarget
@@ -166,6 +166,7 @@ void HeartRateTask::Work() {
     state = newState;
 
     if (state == States::ForegroundMeasuring || state == States::BackgroundMeasuring) {
+      UpdateSamplingSpeed();
       HandleSensorData();
       count++;
     }
@@ -185,17 +186,63 @@ void HeartRateTask::StartMeasurement() {
   measurementSucceeded = false;
   count = 0;
   measurementStartTime = xTaskGetTickCount();
+  beatDetector.Reset();
+  subSampleCount = 0;
+  hrsSum = alsSum = 0;
 }
 
 void HeartRateTask::StopMeasurement() {
+  if (fastSampling) {
+    heartRateSensor.SetFastSampling(false);
+    fastSampling = false;
+  }
   heartRateSensor.Disable();
   ppg.Reset(true);
   vTaskDelay(100);
 }
 
+void HeartRateTask::UpdateSamplingSpeed() {
+  const bool wanted = state == States::ForegroundMeasuring && controller.FastSampling();
+  if (wanted == fastSampling) {
+    return;
+  }
+  heartRateSensor.SetFastSampling(wanted);
+  fastSampling = wanted;
+  // Restart the timing so readings stay evenly spaced
+  count = 0;
+  measurementStartTime = xTaskGetTickCount();
+  subSampleCount = 0;
+  hrsSum = alsSum = 0;
+  beatDetector.Reset();
+}
+
 void HeartRateTask::HandleSensorData() {
   auto sensorData = heartRateSensor.ReadHrsAls();
-  int8_t ambient = ppg.Preprocess(sensorData.hrs, sensorData.als);
+
+  // CyberWatch: find individual beats while the screen is on
+  if (state == States::ForegroundMeasuring) {
+    beatDetector.SetExpectedBpm(controller.HeartRate());
+    if (beatDetector.Add(sensorData.hrs, Pinetime::Controllers::Ppg::deltaTms / SamplesPerPpgSample())) {
+      controller.Beat();
+    }
+  }
+
+  // Ppg is tuned for one sample every 100 ms; in fast mode average each pair
+  hrsSum += sensorData.hrs;
+  alsSum += sensorData.als;
+  subSampleCount++;
+  if (subSampleCount < SamplesPerPpgSample()) {
+    return;
+  }
+  const auto hrs = static_cast<uint16_t>(hrsSum / subSampleCount);
+  const auto als = static_cast<uint16_t>(alsSum / subSampleCount);
+  subSampleCount = 0;
+  hrsSum = alsSum = 0;
+  ProcessPpgSample(hrs, als);
+}
+
+void HeartRateTask::ProcessPpgSample(uint16_t hrs, uint16_t als) {
+  int8_t ambient = ppg.Preprocess(hrs, als);
   int bpm = ppg.HeartRate();
 
   // Ambient light detected

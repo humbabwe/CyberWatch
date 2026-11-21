@@ -33,6 +33,7 @@ namespace Pinetime {
       Weather,
       PassKey,
       CyberAlert,
+      Terminal,
       QuickSettings,
       Settings,
       SettingWatchFace,
@@ -42,6 +43,7 @@ namespace Pinetime {
       SettingDisplay,
       SettingWakeUp,
       SettingSteps,
+      SettingAgent,
       SettingSetDateTime,
       SettingChimes,
       SettingShakeThreshold,
@@ -60,6 +62,7 @@ namespace Pinetime {
       Numerals,
       PrideFlag,
       Legend,
+      CyberWatch,
     };
 
     template <Apps>

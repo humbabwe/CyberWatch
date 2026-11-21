@@ -1,14 +1,12 @@
+#include <initializer_list>
 #include <lvgl/lvgl.h>
 #include "displayapp/screens/WatchFaceTerminal.h"
-#include "displayapp/screens/BatteryIcon.h"
 #include "components/battery/BatteryController.h"
 #include "components/ble/BleController.h"
 #include "components/ble/NotificationManager.h"
 #include "components/heartrate/HeartRateController.h"
 #include "components/motion/MotionController.h"
 #include "components/settings/Settings.h"
-#include "components/ble/SimpleWeatherService.h"
-#include "displayapp/screens/WeatherSymbols.h"
 #include "displayapp/InfiniTimeTheme.h"
 
 using namespace Pinetime::Applications::Screens;
@@ -19,8 +17,7 @@ WatchFaceTerminal::WatchFaceTerminal(Controllers::DateTime& dateTimeController,
                                      Controllers::NotificationManager& notificationManager,
                                      Controllers::Settings& settingsController,
                                      Controllers::HeartRateController& heartRateController,
-                                     Controllers::MotionController& motionController,
-                                     Controllers::SimpleWeatherService& weatherService)
+                                     Controllers::MotionController& motionController)
   : currentDateTime {{}},
     dateTimeController {dateTimeController},
     batteryController {batteryController},
@@ -28,8 +25,9 @@ WatchFaceTerminal::WatchFaceTerminal(Controllers::DateTime& dateTimeController,
     notificationManager {notificationManager},
     settingsController {settingsController},
     heartRateController {heartRateController},
-    motionController {motionController},
-    weatherService {weatherService} {
+    motionController {motionController} {
+  // CyberWatch: green on black throughout
+  lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
 
   container = lv_cont_create(lv_scr_act(), nullptr);
   lv_cont_set_layout(container, LV_LAYOUT_COLUMN_LEFT);
@@ -40,36 +38,34 @@ WatchFaceTerminal::WatchFaceTerminal(Controllers::DateTime& dateTimeController,
   notificationIcon = lv_label_create(container, nullptr);
 
   labelPrompt1 = lv_label_create(container, nullptr);
-  lv_obj_set_style_local_text_color(labelPrompt1, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::lightGray);
   lv_label_set_text_static(labelPrompt1, "user@watch:~ $ now");
 
   labelTime = lv_label_create(container, nullptr);
-  lv_label_set_recolor(labelTime, true);
 
   labelDate = lv_label_create(container, nullptr);
-  lv_label_set_recolor(labelDate, true);
 
   batteryValue = lv_label_create(container, nullptr);
-  lv_label_set_recolor(batteryValue, true);
 
   stepValue = lv_label_create(container, nullptr);
-  lv_label_set_recolor(stepValue, true);
-  lv_obj_set_style_local_text_color(stepValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::orange);
 
   heartbeatValue = lv_label_create(container, nullptr);
-  lv_label_set_recolor(heartbeatValue, true);
-
-  weather = lv_label_create(container, nullptr);
-  lv_label_set_recolor(weather, true);
 
   connectState = lv_label_create(container, nullptr);
-  lv_label_set_recolor(connectState, true);
 
   labelPrompt2 = lv_label_create(container, nullptr);
-  lv_obj_set_style_local_text_color(labelPrompt2, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::lightGray);
   lv_label_set_text_static(labelPrompt2, "user@watch:~ $");
 
+  for (lv_obj_t* label :
+       {notificationIcon, labelPrompt1, labelTime, labelDate, batteryValue, stepValue, heartbeatValue, connectState, labelPrompt2}) {
+    lv_obj_set_style_local_text_color(label, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::green);
+  }
+
   lv_obj_align(container, nullptr, LV_ALIGN_IN_TOP_LEFT, 0, 7);
+
+  lv_obj_t* signature = lv_label_create(lv_scr_act(), nullptr);
+  lv_obj_set_style_local_text_color(signature, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::green);
+  lv_label_set_text_static(signature, "By:Hum");
+  lv_obj_align(signature, nullptr, LV_ALIGN_IN_BOTTOM_RIGHT, -4, -4);
 
   taskRefresh = lv_task_create(RefreshTaskCallback, LV_DISP_DEF_REFR_PERIOD, LV_TASK_PRIO_MID, this);
   Refresh();
@@ -106,9 +102,9 @@ void WatchFaceTerminal::Refresh() {
         hour = hour - 12;
         ampmChar[0] = 'P';
       }
-      lv_label_set_text_fmt(labelTime, "#ffffff [TIME]# #11cc55 %02d:%02d:%02d %s#", hour, minute, second, ampmChar);
+      lv_label_set_text_fmt(labelTime, "[TIME] %02d:%02d:%02d %s", hour, minute, second, ampmChar);
     } else {
-      lv_label_set_text_fmt(labelTime, "#ffffff [TIME]# #11cc55 %02d:%02d:%02d#", hour, minute, second);
+      lv_label_set_text_fmt(labelTime, "[TIME] %02d:%02d:%02d", hour, minute, second);
     }
 
     currentDate = std::chrono::time_point_cast<std::chrono::days>(currentDateTime.Get());
@@ -116,18 +112,14 @@ void WatchFaceTerminal::Refresh() {
       uint16_t year = dateTimeController.Year();
       Controllers::DateTime::Months month = dateTimeController.Month();
       uint8_t day = dateTimeController.Day();
-      lv_label_set_text_fmt(labelDate, "#ffffff [DATE]# #007fff %04d-%02d-%02d#", year, month, day);
+      lv_label_set_text_fmt(labelDate, "[DATE] %04d-%02d-%02d", year, month, day);
     }
   }
 
   powerPresent = batteryController.IsPowerPresent();
   batteryPercentRemaining = batteryController.PercentRemaining();
   if (batteryPercentRemaining.IsUpdated() || powerPresent.IsUpdated()) {
-    lv_obj_set_style_local_text_color(batteryValue,
-                                      LV_LABEL_PART_MAIN,
-                                      LV_STATE_DEFAULT,
-                                      BatteryIcon::ColorFromPercentage(batteryPercentRemaining.Get()));
-    lv_label_set_text_fmt(batteryValue, "#ffffff [BATT]# %d%%", batteryPercentRemaining.Get());
+    lv_label_set_text_fmt(batteryValue, "[BATT] %d%%", batteryPercentRemaining.Get());
     if (batteryController.IsCharging()) {
       lv_label_ins_text(batteryValue, LV_LABEL_POS_LAST, " Charging");
     }
@@ -135,38 +127,16 @@ void WatchFaceTerminal::Refresh() {
 
   stepCount = motionController.NbSteps();
   if (stepCount.IsUpdated()) {
-    lv_label_set_text_fmt(stepValue, "#ffffff [STEP]# %lu steps", stepCount.Get());
+    lv_label_set_text_fmt(stepValue, "[STEP] %lu steps", stepCount.Get());
   }
 
   heartbeat = heartRateController.HeartRate();
   heartbeatRunning = heartRateController.State() != Controllers::HeartRateController::States::Stopped;
   if (heartbeat.IsUpdated() || heartbeatRunning.IsUpdated()) {
     if (heartbeatRunning.Get()) {
-      lv_obj_set_style_local_text_color(heartbeatValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::deepOrange);
-      lv_label_set_text_fmt(heartbeatValue, "#ffffff [L_HR]# %d bpm", heartbeat.Get());
+      lv_label_set_text_fmt(heartbeatValue, "[L_HR] %d bpm", heartbeat.Get());
     } else {
-      lv_label_set_text_static(heartbeatValue, "#ffffff [L_HR]# ---");
-      lv_obj_set_style_local_text_color(heartbeatValue, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::gray);
-    }
-  }
-
-  currentWeather = weatherService.Current();
-  if (currentWeather.IsUpdated()) {
-    auto optCurrentWeather = currentWeather.Get();
-    if (optCurrentWeather) {
-      int16_t temp = optCurrentWeather->temperature.Celsius();
-      char tempUnit = 'C';
-      if (settingsController.GetWeatherFormat() == Controllers::Settings::WeatherFormat::Imperial) {
-        temp = optCurrentWeather->temperature.Fahrenheit();
-        tempUnit = 'F';
-      }
-      lv_label_set_text_fmt(weather,
-                            "#ffffff [WTHR]# #ffdd00 %d°%c %s#",
-                            temp,
-                            tempUnit,
-                            Symbols::GetSimpleCondition(optCurrentWeather->iconId));
-    } else {
-      lv_label_set_text(weather, "#ffffff [WTHR]# #ffdd00 ---");
+      lv_label_set_text_static(heartbeatValue, "[L_HR] ---");
     }
   }
 
@@ -174,15 +144,12 @@ void WatchFaceTerminal::Refresh() {
   bleRadioEnabled = bleController.IsRadioEnabled();
   if (bleState.IsUpdated() || bleRadioEnabled.IsUpdated()) {
     if (!bleRadioEnabled.Get()) {
-      lv_label_set_text_static(connectState, "#ffffff [STAT]# Disabled");
-      lv_obj_set_style_local_text_color(connectState, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::gray);
+      lv_label_set_text_static(connectState, "[STAT] Disabled");
     } else {
       if (bleState.Get()) {
-        lv_label_set_text_static(connectState, "#ffffff [STAT]# Connected");
-        lv_obj_set_style_local_text_color(connectState, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::blue);
+        lv_label_set_text_static(connectState, "[STAT] Connected");
       } else {
-        lv_label_set_text_static(connectState, "#ffffff [STAT]# Disconnected");
-        lv_obj_set_style_local_text_color(connectState, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::gray);
+        lv_label_set_text_static(connectState, "[STAT] Disconnected");
       }
     }
   }

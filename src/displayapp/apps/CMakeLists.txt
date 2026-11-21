@@ -23,8 +23,8 @@ endif ()
 if(DEFINED ENABLE_WATCHFACES)
     set(WATCHFACE_TYPES ${ENABLE_WATCHFACES} CACHE STRING "List of watch faces to build into the firmware")
 else()
-    # CyberWatch: Terminal is the only watch face
-    set(DEFAULT_WATCHFACE_TYPES "WatchFace::Terminal")
+    # CyberWatch: the CyberWatch heart screen is the only watch face (Terminal is one swipe away)
+    set(DEFAULT_WATCHFACE_TYPES "WatchFace::CyberWatch")
     set(WATCHFACE_TYPES "${DEFAULT_WATCHFACE_TYPES}" CACHE STRING "List of watch faces to build into the firmware")
 endif()
 

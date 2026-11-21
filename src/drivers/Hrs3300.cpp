@@ -68,6 +68,14 @@ void Hrs3300::Disable() {
   WriteRegister(static_cast<uint8_t>(Registers::PDriver), 0);
 }
 
+void Hrs3300::SetFastSampling(bool fast) {
+  // Enable register bits 6-4 set the wait between conversions:
+  // 0b101 = 50 ms (normal, ~100 ms per reading), 0b111 = 0 ms (~50 ms per reading)
+  auto value = ReadRegister(static_cast<uint8_t>(Registers::Enable));
+  value = (value & 0x8f) | (fast ? 0x70 : 0x50);
+  WriteRegister(static_cast<uint8_t>(Registers::Enable), value);
+}
+
 Hrs3300::PackedHrsAls Hrs3300::ReadHrsAls() {
   constexpr Registers dataRegisters[] =
     {Registers::C1dataM, Registers::C0DataM, Registers::C0DataH, Registers::C1dataH, Registers::C1dataL, Registers::C0dataL};

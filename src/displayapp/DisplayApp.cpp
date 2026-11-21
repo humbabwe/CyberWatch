@@ -30,6 +30,7 @@
 #include "displayapp/screens/Weather.h"
 #include "displayapp/screens/PassKey.h"
 #include "displayapp/screens/CyberAlert.h"
+#include "displayapp/screens/settings/SettingAgent.h"
 #include "displayapp/screens/Error.h"
 #include "displayapp/screens/Calculator.h"
 
@@ -322,7 +323,8 @@ void DisplayApp::Refresh() {
         }
         // Since the active screen is not really an app, go back to Clock.
         if (currentApp == Apps::Launcher || currentApp == Apps::Notifications || currentApp == Apps::NotificationsPreview ||
-            currentApp == Apps::QuickSettings || currentApp == Apps::Settings || currentApp == Apps::CyberAlert) {
+            currentApp == Apps::QuickSettings || currentApp == Apps::Settings || currentApp == Apps::CyberAlert ||
+            currentApp == Apps::Terminal) {
           LoadScreen(Apps::Clock, DisplayApp::FullRefreshDirections::None);
           appStackDirections.Reset();
           returnAppStack.Reset();
@@ -446,6 +448,10 @@ void DisplayApp::Refresh() {
                 break;
               case TouchEvents::SwipeRight:
                 LoadNewScreen(Apps::QuickSettings, DisplayApp::FullRefreshDirections::RightAnim);
+                break;
+              case TouchEvents::SwipeLeft:
+                // CyberWatch: Terminal readout (swipe right to come back)
+                LoadNewScreen(Apps::Terminal, DisplayApp::FullRefreshDirections::LeftAnim);
                 break;
               case TouchEvents::DoubleTap:
                 PushMessageToSystemTask(System::Messages::GoToSleep);
@@ -578,6 +584,20 @@ void DisplayApp::LoadScreen(Apps app, DisplayApp::FullRefreshDirections directio
 
     case Apps::PassKey:
       currentScreen = std::make_unique<Screens::PassKey>(bleController.GetPairingKey());
+      break;
+
+    case Apps::Terminal:
+      currentScreen = std::make_unique<Screens::WatchFaceTerminal>(dateTimeController,
+                                                                   batteryController,
+                                                                   bleController,
+                                                                   notificationManager,
+                                                                   settingsController,
+                                                                   heartRateController,
+                                                                   motionController);
+      break;
+
+    case Apps::SettingAgent:
+      currentScreen = std::make_unique<Screens::SettingAgent>(settingsController);
       break;
 
     case Apps::CyberAlert:

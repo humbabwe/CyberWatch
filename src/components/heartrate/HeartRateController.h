@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <components/ble/HeartRateService.h>
 
@@ -34,7 +35,28 @@ namespace Pinetime {
 
       void SetService(Pinetime::Controllers::HeartRateService* service);
 
+      // CyberWatch: individual beats for the heart line
+      void Beat() {
+        beatCount++;
+      }
+
+      // Counts up by one per detected beat; compare with the last value seen
+      uint32_t BeatCount() const {
+        return beatCount;
+      }
+
+      // Read the sensor faster while the CyberWatch screen is on
+      void SetFastSampling(bool fast) {
+        fastSampling = fast;
+      }
+
+      bool FastSampling() const {
+        return fastSampling;
+      }
+
     private:
+      std::atomic<uint32_t> beatCount {0};
+      std::atomic<bool> fastSampling {false};
       Applications::HeartRateTask* task = nullptr;
       States state = States::Stopped;
       uint8_t heartRate = 0;

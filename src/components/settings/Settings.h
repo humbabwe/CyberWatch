@@ -305,6 +305,29 @@ namespace Pinetime {
         return settings.stepsGoal;
       };
 
+      // CyberWatch: AGENT HUMBY status cutoffs (BPM). CAUTION from the first, DANGER from the second.
+      void SetAgentCautionBpm(uint8_t bpm) {
+        if (bpm != settings.agentCautionBpm) {
+          settingsChanged = true;
+        }
+        settings.agentCautionBpm = bpm;
+      }
+
+      uint8_t GetAgentCautionBpm() const {
+        return settings.agentCautionBpm;
+      }
+
+      void SetAgentDangerBpm(uint8_t bpm) {
+        if (bpm != settings.agentDangerBpm) {
+          settingsChanged = true;
+        }
+        settings.agentDangerBpm = bpm;
+      }
+
+      uint8_t GetAgentDangerBpm() const {
+        return settings.agentDangerBpm;
+      }
+
       void SetBleRadioEnabled(bool enabled) {
         bleRadioEnabled = enabled;
       };
@@ -354,7 +377,7 @@ namespace Pinetime {
     private:
       Pinetime::Controllers::FS& fs;
 
-      static constexpr uint32_t settingsVersion = 0x000a;
+      static constexpr uint32_t settingsVersion = 0x000b; // CyberWatch: bumped for the AGENT HUMBY cutoffs
 
       struct SettingsData {
         uint32_t version = settingsVersion;
@@ -367,7 +390,7 @@ namespace Pinetime {
         WeatherFormat weatherFormat = WeatherFormat::Metric;
         Notification notificationStatus = Notification::On;
 
-        Pinetime::Applications::WatchFace watchFace = Pinetime::Applications::WatchFace::Terminal;
+        Pinetime::Applications::WatchFace watchFace = Pinetime::Applications::WatchFace::CyberWatch;
         ChimesOption chimesOption = ChimesOption::None;
 
         PineTimeStyle PTS;
@@ -383,6 +406,9 @@ namespace Pinetime {
 
         bool dfuAndFsEnabledOnBoot = false;
         uint16_t heartRateBackgroundPeriod = std::numeric_limits<uint16_t>::max(); // Disabled by default
+
+        uint8_t agentCautionBpm = 100;
+        uint8_t agentDangerBpm = 130;
       };
 
       SettingsData settings;

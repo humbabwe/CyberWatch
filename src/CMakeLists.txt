@@ -396,6 +396,8 @@ list(APPEND SOURCE_FILES
         displayapp/screens/Tennis.cpp
         displayapp/screens/PassKey.cpp
         displayapp/screens/CyberAlert.cpp
+        displayapp/screens/WatchFaceCyberWatch.cpp
+        displayapp/screens/settings/SettingAgent.cpp
         displayapp/screens/Error.cpp
         displayapp/screens/Alarm.cpp
         displayapp/screens/Styles.cpp
@@ -495,6 +497,7 @@ list(APPEND SOURCE_FILES
         heartratetask/HeartRateTask.cpp
         components/heartrate/HeartRateController.cpp
         components/heartrate/Ppg.cpp
+        components/heartrate/BeatDetector.cpp
 
         buttonhandler/ButtonHandler.cpp
         touchhandler/TouchHandler.cpp
@@ -563,6 +566,7 @@ list(APPEND RECOVERY_SOURCE_FILES
         components/heartrate/HeartRateController.cpp
         heartratetask/HeartRateTask.cpp
         components/heartrate/Ppg.cpp
+        components/heartrate/BeatDetector.cpp
 
         components/motor/MotorController.cpp
         components/fs/FS.cpp
@@ -686,6 +690,7 @@ set(INCLUDE_FILES
         drivers/TwiMaster.h
         heartratetask/HeartRateTask.h
         components/heartrate/Ppg.h
+        components/heartrate/BeatDetector.h
         components/heartrate/HeartRateController.h
         libs/arduinoFFT/src/arduinoFFT.h
         libs/arduinoFFT/src/defs.h

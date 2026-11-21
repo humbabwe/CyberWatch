@@ -18,6 +18,7 @@
 #include "displayapp/screens/WatchFaceNumerals.h"
 #include "displayapp/screens/WatchFacePrideFlag.h"
 #include "displayapp/screens/WatchFaceLegend.h"
+#include "displayapp/screens/WatchFaceCyberWatch.h"
 
 namespace Pinetime {
   namespace Applications {

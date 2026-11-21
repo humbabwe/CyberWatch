@@ -35,6 +35,8 @@ namespace Pinetime {
       void Init();
       void Enable();
       void Disable();
+      // CyberWatch: shorter wait between readings (~20 per second instead of ~10)
+      void SetFastSampling(bool fast);
       PackedHrsAls ReadHrsAls();
 
     private:
