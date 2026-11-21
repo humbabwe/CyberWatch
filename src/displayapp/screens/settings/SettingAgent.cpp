@@ -10,7 +10,8 @@ namespace {
   }
 
   constexpr lv_coord_t buttonWidth = 70;
-  constexpr lv_coord_t buttonHeight = 56;
+  constexpr lv_coord_t buttonHeight = 44;
+  constexpr lv_color_t purple = LV_COLOR_MAKE(0xb0, 0x40, 0xff);
 }
 
 SettingAgent::SettingAgent(Controllers::Settings& settingsController) : settingsController {settingsController} {
@@ -19,8 +20,9 @@ SettingAgent::SettingAgent(Controllers::Settings& settingsController) : settings
   lv_label_set_text_static(title, "AGENT HUMBY");
   lv_obj_align(title, nullptr, LV_ALIGN_IN_TOP_MID, 0, 8);
 
-  caution = CreateRow("CAUTION", Colors::orange, 40);
-  danger = CreateRow("DANGER", LV_COLOR_RED, 140);
+  caution = CreateRow("CAUTION", Colors::orange, 32);
+  danger = CreateRow("DANGER", LV_COLOR_RED, 100);
+  poison = CreateRow("POISON (STILL)", purple, 168);
   UpdateValues();
 }
 
@@ -50,14 +52,14 @@ SettingAgent::Row SettingAgent::CreateRow(const char* name, lv_color_t color, lv
     return button;
   };
 
-  const lv_coord_t buttonY = y + 26;
+  const lv_coord_t buttonY = y + 22;
   row.minus = makeButton("-", LV_ALIGN_IN_TOP_LEFT, buttonY);
   row.plus = makeButton("+", LV_ALIGN_IN_TOP_RIGHT, buttonY);
 
   row.value = lv_label_create(lv_scr_act(), nullptr);
   lv_obj_set_style_local_text_font(row.value, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_42);
   lv_obj_set_style_local_text_color(row.value, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color);
-  lv_obj_set_y(row.value, buttonY + 4);
+  lv_obj_set_y(row.value, buttonY - 1);
   return row;
 }
 
@@ -66,6 +68,8 @@ void SettingAgent::UpdateValues() {
   lv_obj_align(caution.value, nullptr, LV_ALIGN_IN_TOP_MID, 0, lv_obj_get_y(caution.value));
   lv_label_set_text_fmt(danger.value, "%d", settingsController.GetAgentDangerBpm());
   lv_obj_align(danger.value, nullptr, LV_ALIGN_IN_TOP_MID, 0, lv_obj_get_y(danger.value));
+  lv_label_set_text_fmt(poison.value, "%d", settingsController.GetAgentPoisonBpm());
+  lv_obj_align(poison.value, nullptr, LV_ALIGN_IN_TOP_MID, 0, lv_obj_get_y(poison.value));
 }
 
 void SettingAgent::OnButtonEvent(lv_obj_t* object, lv_event_t event) {
@@ -80,6 +84,7 @@ void SettingAgent::OnButtonEvent(lv_obj_t* object, lv_event_t event) {
 
   int cautionBpm = settingsController.GetAgentCautionBpm();
   int dangerBpm = settingsController.GetAgentDangerBpm();
+  int poisonBpm = settingsController.GetAgentPoisonBpm();
 
   if (object == caution.minus) {
     cautionBpm -= step;
@@ -89,6 +94,10 @@ void SettingAgent::OnButtonEvent(lv_obj_t* object, lv_event_t event) {
     dangerBpm -= step;
   } else if (object == danger.plus) {
     dangerBpm += step;
+  } else if (object == poison.minus) {
+    poisonBpm -= step;
+  } else if (object == poison.plus) {
+    poisonBpm += step;
   } else {
     return;
   }
@@ -98,5 +107,7 @@ void SettingAgent::OnButtonEvent(lv_obj_t* object, lv_event_t event) {
 
   settingsController.SetAgentCautionBpm(static_cast<uint8_t>(cautionBpm));
   settingsController.SetAgentDangerBpm(static_cast<uint8_t>(dangerBpm));
+  settingsController.SetAgentPoisonBpm(
+    static_cast<uint8_t>(std::clamp(poisonBpm, static_cast<int>(minimumBpm), static_cast<int>(maximumBpm))));
   UpdateValues();
 }

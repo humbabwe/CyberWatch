@@ -1,6 +1,7 @@
 #pragma once
 
-// CyberWatch: set the heart rates where AGENT HUMBY goes to CAUTION and DANGER.
+// CyberWatch: set the heart rates where AGENT HUMBY goes to CAUTION, DANGER
+// and (while sitting still) POISON.
 
 #include <cstdint>
 #include <lvgl/lvgl.h>
@@ -35,6 +36,7 @@ namespace Pinetime {
         Controllers::Settings& settingsController;
         Row caution;
         Row danger;
+        Row poison;
       };
     }
   }

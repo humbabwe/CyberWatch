@@ -328,6 +328,18 @@ namespace Pinetime {
         return settings.agentDangerBpm;
       }
 
+      // POISON: at or above this while sitting still
+      void SetAgentPoisonBpm(uint8_t bpm) {
+        if (bpm != settings.agentPoisonBpm) {
+          settingsChanged = true;
+        }
+        settings.agentPoisonBpm = bpm;
+      }
+
+      uint8_t GetAgentPoisonBpm() const {
+        return settings.agentPoisonBpm;
+      }
+
       void SetBleRadioEnabled(bool enabled) {
         bleRadioEnabled = enabled;
       };
@@ -409,6 +421,7 @@ namespace Pinetime {
 
         uint8_t agentCautionBpm = 100;
         uint8_t agentDangerBpm = 130;
+        uint8_t agentPoisonBpm = 90;
       };
 
       SettingsData settings;

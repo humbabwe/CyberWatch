@@ -1,6 +1,7 @@
 #include "displayapp/screens/WatchFaceCyberWatch.h"
 #include <algorithm>
 #include "components/heartrate/HeartRateController.h"
+#include "components/motion/MotionController.h"
 #include "components/settings/Settings.h"
 #include "displayapp/InfiniTimeTheme.h"
 
@@ -14,10 +15,19 @@ namespace {
   constexpr int8_t spikeLength = sizeof(spikeShape) / sizeof(spikeShape[0]);
 
   constexpr lv_color_t red = LV_COLOR_MAKE(0xff, 0x10, 0x10);
+  constexpr lv_color_t purple = LV_COLOR_MAKE(0xb0, 0x40, 0xff);
+
+  // Step tracking outlives the screen (it's rebuilt every time the watch wakes),
+  // so sitting still keeps counting while the screen is off
+  bool stepsTracked = false;
+  uint32_t lastStepCount = 0;
+  uint32_t stillSinceTick = 0;
 }
 
-WatchFaceCyberWatch::WatchFaceCyberWatch(Controllers::HeartRateController& heartRateController, Controllers::Settings& settingsController)
-  : heartRateController {heartRateController}, settingsController {settingsController} {
+WatchFaceCyberWatch::WatchFaceCyberWatch(Controllers::HeartRateController& heartRateController,
+                                         Controllers::MotionController& motionController,
+                                         Controllers::Settings& settingsController)
+  : heartRateController {heartRateController}, motionController {motionController}, settingsController {settingsController} {
   lv_obj_set_style_local_bg_color(lv_scr_act(), LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
 
   labelTitle = lv_label_create(lv_scr_act(), nullptr);
@@ -141,21 +151,28 @@ void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading, uint32_t elapse
 
     const float caution = settingsController.GetAgentCautionBpm();
     const float danger = settingsController.GetAgentDangerBpm();
+    const float poison = settingsController.GetAgentPoisonBpm();
     // Going up needs the cutoff; coming back down needs to drop a little below it
     const float down = hysteresisBpm;
-    switch (level) {
-      case Level::Offline:
-        newLevel = smoothedBpm >= danger ? Level::Danger : smoothedBpm >= caution ? Level::Caution : Level::Fine;
-        break;
-      case Level::Fine:
-        newLevel = smoothedBpm >= danger ? Level::Danger : smoothedBpm >= caution ? Level::Caution : Level::Fine;
-        break;
-      case Level::Caution:
-        newLevel = smoothedBpm >= danger ? Level::Danger : smoothedBpm < caution - down ? Level::Fine : Level::Caution;
-        break;
-      case Level::Danger:
-        newLevel = smoothedBpm >= danger - down ? Level::Danger : smoothedBpm >= caution ? Level::Caution : Level::Fine;
-        break;
+
+    // Heart rate up while sitting still: POISON. Up while moving is exercise.
+    const float poisonCutoff = level == Level::Poison ? poison - down : poison;
+    if (IsSittingStill() && smoothedBpm >= poisonCutoff) {
+      newLevel = Level::Poison;
+    } else {
+      switch (level) {
+        case Level::Offline:
+        case Level::Poison:
+        case Level::Fine:
+          newLevel = smoothedBpm >= danger ? Level::Danger : smoothedBpm >= caution ? Level::Caution : Level::Fine;
+          break;
+        case Level::Caution:
+          newLevel = smoothedBpm >= danger ? Level::Danger : smoothedBpm < caution - down ? Level::Fine : Level::Caution;
+          break;
+        case Level::Danger:
+          newLevel = smoothedBpm >= danger - down ? Level::Danger : smoothedBpm >= caution ? Level::Caution : Level::Fine;
+          break;
+      }
     }
   }
 
@@ -163,6 +180,17 @@ void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading, uint32_t elapse
     level = newLevel;
     ApplyLevel();
   }
+}
+
+bool WatchFaceCyberWatch::IsSittingStill() {
+  const uint32_t steps = motionController.NbSteps();
+  const uint32_t now = lv_tick_get();
+  if (!stepsTracked || steps != lastStepCount) {
+    stepsTracked = true;
+    lastStepCount = steps;
+    stillSinceTick = now;
+  }
+  return lv_tick_elaps(stillSinceTick) >= stillMs;
 }
 
 void WatchFaceCyberWatch::ApplyLevel() {
@@ -182,6 +210,10 @@ void WatchFaceCyberWatch::ApplyLevel() {
     case Level::Danger:
       color = red;
       text = "AGENT HUMBY: DANGER";
+      break;
+    case Level::Poison:
+      color = purple;
+      text = "AGENT HUMBY: POISON";
       break;
   }
   lv_obj_set_style_local_text_color(labelTitle, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, color);
