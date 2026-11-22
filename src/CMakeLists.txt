@@ -397,6 +397,7 @@ list(APPEND SOURCE_FILES
         displayapp/screens/PassKey.cpp
         displayapp/screens/CyberAlert.cpp
         displayapp/screens/WatchFaceCyberWatch.cpp
+        displayapp/screens/CyberBox.cpp
         displayapp/screens/settings/SettingAgent.cpp
         displayapp/screens/Error.cpp
         displayapp/screens/Alarm.cpp

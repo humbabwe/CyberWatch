@@ -127,6 +127,7 @@ namespace Pinetime {
       void Init();
       void Refresh();
       void LoadNewScreen(Apps app, DisplayApp::FullRefreshDirections direction);
+      static bool IsUserAppBuilt(Apps app);
       void LoadScreen(Apps app, DisplayApp::FullRefreshDirections direction);
       void PushMessageToSystemTask(Pinetime::System::Messages message);
 

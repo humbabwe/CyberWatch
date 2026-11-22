@@ -389,6 +389,10 @@ void DisplayApp::Refresh() {
         LoadNewScreen(Apps::NotificationsPreview, DisplayApp::FullRefreshDirections::Down);
         break;
       case Messages::TimerDone: {
+        // CyberWatch: the Timer app isn't built, so there's nothing to show
+        if (!IsUserAppBuilt(Apps::Timer)) {
+          break;
+        }
         if (state != States::Running) {
           PushMessageToSystemTask(System::Messages::GoToRunning);
         }
@@ -404,6 +408,13 @@ void DisplayApp::Refresh() {
         break;
       }
       case Messages::AlarmTriggered:
+        // CyberWatch: the Alarm app isn't built. An alarm left over from older
+        // firmware could still go off, with no screen to stop it, so turn it off.
+        if (!IsUserAppBuilt(Apps::Alarm)) {
+          alarmController.StopAlerting();
+          alarmController.DisableAlarm();
+          break;
+        }
         if (currentApp == Apps::Alarm) {
           auto* alarm = static_cast<Screens::Alarm*>(currentScreen.get());
           alarm->SetAlerting();
@@ -705,6 +716,12 @@ void DisplayApp::LoadScreen(Apps app, DisplayApp::FullRefreshDirections directio
     }
   }
   currentApp = app;
+}
+
+bool DisplayApp::IsUserAppBuilt(Apps app) {
+  return std::ranges::any_of(userApps, [app](const AppDescription& description) {
+    return description.app == app;
+  });
 }
 
 void DisplayApp::PushMessage(Messages msg) {
