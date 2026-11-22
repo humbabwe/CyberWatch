@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <array>
 #include <bitset>
 #include <limits>
 #include <optional>
@@ -328,6 +329,22 @@ namespace Pinetime {
         return settings.agentDangerBpm;
       }
 
+      // CyberWatch: how often each Settings menu entry was opened, so the list
+      // can put the most used at the top. Indexed by the entry's position in
+      // the Settings screen's list (new entries go at the end of that list).
+      static constexpr size_t settingsMenuSlots = 16;
+
+      void CountSettingsMenuOpen(size_t index) {
+        if (index < settingsMenuSlots && settings.settingsMenuOpenCounts[index] < UINT16_MAX) {
+          settings.settingsMenuOpenCounts[index]++;
+          settingsChanged = true;
+        }
+      }
+
+      uint16_t GetSettingsMenuOpenCount(size_t index) const {
+        return index < settingsMenuSlots ? settings.settingsMenuOpenCounts[index] : 0;
+      }
+
       // POISON: at or above this while sitting still
       void SetAgentPoisonBpm(uint8_t bpm) {
         if (bpm != settings.agentPoisonBpm) {
@@ -422,6 +439,8 @@ namespace Pinetime {
         uint8_t agentCautionBpm = 100;
         uint8_t agentDangerBpm = 130;
         uint8_t agentPoisonBpm = 90;
+
+        std::array<uint16_t, settingsMenuSlots> settingsMenuOpenCounts {};
       };
 
       SettingsData settings;

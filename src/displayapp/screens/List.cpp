@@ -2,6 +2,7 @@
 #include "displayapp/DisplayApp.h"
 #include "displayapp/screens/Symbols.h"
 #include "displayapp/InfiniTimeTheme.h"
+#include "displayapp/screens/settings/Settings.h"
 
 using namespace Pinetime::Applications::Screens;
 
@@ -81,6 +82,7 @@ void List::OnButtonEvent(lv_obj_t* object, lv_event_t event) {
   if (event == LV_EVENT_CLICKED) {
     for (int i = 0; i < MAXLISTITEMS; i++) {
       if (apps[i] != Apps::None && object == itemApps[i]) {
+        Settings::RecordOpen(settingsController, apps[i]);
         app->StartApp(apps[i], DisplayApp::FullRefreshDirections::Up);
         running = false;
         return;

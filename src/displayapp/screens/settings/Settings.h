@@ -19,6 +19,9 @@ namespace Pinetime {
 
         bool OnTouchEvent(Pinetime::Applications::TouchEvents event) override;
 
+        // CyberWatch: called by the list when an entry is opened
+        static void RecordOpen(Controllers::Settings& settingsController, Apps app);
+
       private:
         DisplayApp* app;
         auto CreateScreenList() const;
@@ -45,6 +48,11 @@ namespace Pinetime {
           {Symbols::bluetooth, "Bluetooth", Apps::SettingBluetooth},
           {Symbols::list, "About", Apps::SysInfo},
         }};
+        // Entries sorted most-opened first (indexes into entries)
+        using Order = std::array<uint8_t, entriesPerScreen * nScreens>;
+        static Order SortedOrder(const Controllers::Settings& settingsController);
+        Order order;
+
         ScreenList<nScreens> screens;
       };
     }
