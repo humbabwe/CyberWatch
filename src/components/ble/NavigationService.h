@@ -28,6 +28,7 @@
 
 namespace Pinetime {
   namespace Controllers {
+    class MotorController;
 
     class NavigationService {
     public:
@@ -45,7 +46,15 @@ namespace Pinetime {
 
       int getProgress();
 
+      // CyberWatch: buzz turn directions on the wrist
+      void SetMotorController(MotorController* motor);
+
     private:
+      void CheckTurnAlert();
+      MotorController* motorController = nullptr;
+      std::string alertedFlag; // maneuver we already buzzed for
+      uint32_t lastMeters = 0;
+
       struct ble_gatt_chr_def characteristicDefinition[5];
       struct ble_gatt_svc_def serviceDefinition[2];
 

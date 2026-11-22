@@ -788,6 +788,7 @@ void DisplayApp::Register(Pinetime::Controllers::MusicService* musicService) {
 
 void DisplayApp::Register(Pinetime::Controllers::NavigationService* NavigationService) {
   this->controllers.navigationService = NavigationService;
+  NavigationService->SetMotorController(&motorController);
 }
 
 void DisplayApp::ApplyBrightness() {

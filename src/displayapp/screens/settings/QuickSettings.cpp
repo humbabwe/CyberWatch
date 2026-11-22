@@ -42,8 +42,9 @@ QuickSettings::QuickSettings(Pinetime::Applications::DisplayApp* app,
   // This is the distance (padding) between all objects on this screen.
   static constexpr uint8_t innerDistance = 10;
 
-  // Time
+  // CyberWatch: no clock here (time is only on the Terminal), just a terminal-style header
   label_time = lv_label_create(lv_scr_act(), nullptr);
+  lv_label_set_text_static(label_time, "> QUICK");
   lv_label_set_align(label_time, LV_LABEL_ALIGN_CENTER);
   lv_obj_align(label_time, lv_scr_act(), LV_ALIGN_IN_TOP_LEFT, 0, 0);
 
@@ -84,9 +85,8 @@ QuickSettings::QuickSettings(Pinetime::Applications::DisplayApp* app,
   btn3->user_data = this;
   lv_obj_set_event_cb(btn3, ButtonEventHandler);
   lv_obj_add_style(btn3, LV_BTN_PART_MAIN, &btn_style);
-  lv_obj_set_style_local_bg_color(btn3, LV_BTN_PART_MAIN, static_cast<lv_state_t>(ButtonState::NotificationsOff), LV_COLOR_RED);
-  static constexpr lv_color_t violet = LV_COLOR_MAKE(0x60, 0x00, 0xff);
-  lv_obj_set_style_local_bg_color(btn3, LV_BTN_PART_MAIN, static_cast<lv_state_t>(ButtonState::Sleep), violet);
+  // CyberWatch: on = solid green, off = outline only, sleep = dark green
+  lv_obj_set_style_local_bg_color(btn3, LV_BTN_PART_MAIN, static_cast<lv_state_t>(ButtonState::Sleep), Colors::greenDark);
   lv_obj_set_size(btn3, buttonWidth, buttonHeight);
   lv_obj_align(btn3, nullptr, LV_ALIGN_IN_BOTTOM_LEFT, buttonXOffset, 0);
 
@@ -127,10 +127,6 @@ QuickSettings::~QuickSettings() {
 
 void QuickSettings::Refresh() {
   statusIcons.Update();
-  currentDateTime = std::chrono::time_point_cast<std::chrono::minutes>(dateTimeController.CurrentDateTime());
-  if (currentDateTime.IsUpdated()) {
-    lv_label_set_text(label_time, dateTimeController.FormattedTime().c_str());
-  }
 }
 
 void QuickSettings::OnButtonEvent(lv_obj_t* object) {
