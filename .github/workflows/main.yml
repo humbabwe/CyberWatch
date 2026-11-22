@@ -87,6 +87,9 @@ jobs:
           path: ./build/output/infinitime-resources-*.zip
 
   build-simulator:
+    # CyberWatch: the PC simulator (InfiniSim) does not know the CyberWatch screens and always fails,
+    # which marked every build as failed. Turned off at Brian's request; the watch firmware build is unaffected.
+    if: false
     runs-on: ubuntu-22.04
     steps:
     - name: Install SDL2 and libpng development package
