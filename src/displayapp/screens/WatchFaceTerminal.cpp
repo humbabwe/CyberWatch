@@ -92,20 +92,8 @@ void WatchFaceTerminal::Refresh() {
     uint8_t minute = dateTimeController.Minutes();
     uint8_t second = dateTimeController.Seconds();
 
-    if (settingsController.GetClockType() == Controllers::Settings::ClockType::H12) {
-      char ampmChar[3] = "AM";
-      if (hour == 0) {
-        hour = 12;
-      } else if (hour == 12) {
-        ampmChar[0] = 'P';
-      } else if (hour > 12) {
-        hour = hour - 12;
-        ampmChar[0] = 'P';
-      }
-      lv_label_set_text_fmt(labelTime, "[TIME] %02d:%02d:%02d %s", hour, minute, second, ampmChar);
-    } else {
-      lv_label_set_text_fmt(labelTime, "[TIME] %02d:%02d:%02d", hour, minute, second);
-    }
+    // CyberWatch: always 24-hour time
+    lv_label_set_text_fmt(labelTime, "[TIME] %02d:%02d:%02d", hour, minute, second);
 
     currentDate = std::chrono::time_point_cast<std::chrono::days>(currentDateTime.Get());
     if (currentDate.IsUpdated()) {

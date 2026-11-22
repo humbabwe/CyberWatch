@@ -44,8 +44,12 @@ List::List(uint8_t screenID,
 
       static constexpr int btnHeight = (LV_HOR_RES_MAX - ((MAXLISTITEMS - 1) * innerPad)) / MAXLISTITEMS;
       itemApps[i] = lv_btn_create(container, nullptr);
-      lv_obj_set_style_local_radius(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, btnHeight / 3);
-      lv_obj_set_style_local_bg_color(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, Colors::bgAlt);
+      // CyberWatch: green outline and text on black, terminal style; dark green while pressed
+      lv_obj_set_style_local_radius(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, 4);
+      lv_obj_set_style_local_bg_color(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+      lv_obj_set_style_local_bg_color(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_PRESSED, LV_COLOR_MAKE(0x00, 0x40, 0x00));
+      lv_obj_set_style_local_border_color(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, Colors::green);
+      lv_obj_set_style_local_border_width(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, 2);
       lv_obj_set_width(itemApps[i], LV_HOR_RES - 8);
       lv_obj_set_height(itemApps[i], btnHeight);
       lv_obj_set_event_cb(itemApps[i], ButtonEventHandler);
@@ -54,7 +58,7 @@ List::List(uint8_t screenID,
       lv_obj_set_style_local_clip_corner(itemApps[i], LV_BTN_PART_MAIN, LV_STATE_DEFAULT, true);
 
       lv_obj_t* icon = lv_label_create(itemApps[i], nullptr);
-      lv_obj_set_style_local_text_color(icon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_YELLOW);
+      lv_obj_set_style_local_text_color(icon, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::green);
       lv_label_set_text_static(icon, applications[i].icon);
       lv_label_set_long_mode(icon, LV_LABEL_LONG_CROP);
       lv_label_set_align(icon, LV_LABEL_ALIGN_CENTER);
@@ -62,6 +66,7 @@ List::List(uint8_t screenID,
       lv_obj_align(icon, nullptr, LV_ALIGN_IN_LEFT_MID, 0, 0);
 
       lv_obj_t* text = lv_label_create(itemApps[i], nullptr);
+      lv_obj_set_style_local_text_color(text, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::green);
       lv_label_set_text_fmt(text, "%s", applications[i].name);
       lv_obj_align(text, icon, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
     }
