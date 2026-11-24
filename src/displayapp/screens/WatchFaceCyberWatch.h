@@ -49,8 +49,14 @@ namespace Pinetime {
         static constexpr uint16_t minimumSpikeGapMs = 300;
         static constexpr uint16_t offlineAfterMs = 5000; // no reading this long: OFFLINE
         static constexpr uint8_t hysteresisBpm = 3;
-        static constexpr uint32_t stillMs =
-          CYBERWATCH_STILL_MS; // no steps for this long counts as sitting still      // stops flicker right at a cutoff
+        static constexpr uint32_t stillMs = CYBERWATCH_STILL_MS; // no steps for this long counts as sitting still
+
+        // Guarding against bad sensor readings (tune these after wearing it)
+        static constexpr uint32_t levelHoldMs = 20000;   // a new status must hold this long before it shows
+        static constexpr uint8_t maxJumpBpm = 25;        // a reading this far from the average is suspect...
+        static constexpr uint32_t jumpConfirmMs = 5000;  // ...unless it keeps up this long
+        static constexpr int32_t swingingSpeed = 250;    // motion this strong = arm swinging (shake-to-wake is 150)
+        static constexpr uint32_t swingSettleMs = 3000;  // keep ignoring readings this long after swinging stops
 
         void UpdateLevel(uint8_t bpm, bool reading, uint32_t elapsedMs);
         bool IsSittingStill();
@@ -67,6 +73,10 @@ namespace Pinetime {
         uint32_t sinceSpikeMs = 0;
         uint32_t sinceReadingMs = offlineAfterMs;
         float smoothedBpm = 0.0f;
+        uint32_t jumpMs = 0;      // how long readings have been far from the average
+        uint32_t sinceSwingMs = swingSettleMs;
+        Level pendingLevel = Level::Offline;
+        uint32_t pendingLevelMs = 0;
         Level level = Level::Offline;
         bool levelShown = false;
         uint32_t noiseSeed = 12345;

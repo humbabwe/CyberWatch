@@ -141,12 +141,39 @@ void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading, uint32_t elapse
     newLevel = Level::Offline;
     smoothedBpm = 0.0f;
   } else if (reading) {
+    // Arm swinging hard (a tennis swing, a lift): wrist sensors read badly while
+    // moving, so trust nothing until the arm has been calmer for a few seconds
+    if (motionController.CurrentShakeSpeed() >= swingingSpeed) {
+      sinceSwingMs = 0;
+    } else if (sinceSwingMs < swingSettleMs) {
+      sinceSwingMs += elapsedMs;
+    }
+    const bool swinging = sinceSwingMs < swingSettleMs;
+
+    // A sudden big jump (70 to 160 in a second) is usually a bad reading.
+    // Only believe it if it keeps up for a few seconds.
+    bool useReading = !swinging;
+    if (useReading && smoothedBpm != 0.0f) {
+      const float diff = static_cast<float>(bpm) - smoothedBpm;
+      if (diff > maxJumpBpm || diff < -static_cast<float>(maxJumpBpm)) {
+        jumpMs += elapsedMs;
+        useReading = jumpMs >= jumpConfirmMs;
+      } else {
+        jumpMs = 0;
+      }
+    }
+
     // Average over a few seconds so one odd reading doesn't change the colour
     if (smoothedBpm == 0.0f) {
-      smoothedBpm = bpm;
-    } else {
+      if (!swinging) {
+        smoothedBpm = bpm;
+      }
+    } else if (useReading) {
       // About 3 seconds to catch up
       smoothedBpm += (static_cast<float>(bpm) - smoothedBpm) * std::min(1.0f, static_cast<float>(elapsedMs) / 3000.0f);
+    }
+    if (smoothedBpm == 0.0f) {
+      return; // no trustworthy reading yet
     }
 
     const float caution = settingsController.GetAgentCautionBpm();
@@ -176,8 +203,23 @@ void WatchFaceCyberWatch::UpdateLevel(uint8_t bpm, bool reading, uint32_t elapse
     }
   }
 
-  if (newLevel != level || !levelShown) {
+  // A new status has to hold for a while before it shows, so a short bad patch
+  // can't flash DANGER or POISON. Going OFFLINE, and the first reading after
+  // OFFLINE, show right away.
+  if (newLevel == level) {
+    pendingLevelMs = 0;
+  } else if (newLevel == Level::Offline || level == Level::Offline) {
+    pendingLevelMs = levelHoldMs;
+  } else if (newLevel != pendingLevel) {
+    pendingLevel = newLevel;
+    pendingLevelMs = 0;
+  } else {
+    pendingLevelMs += elapsedMs;
+  }
+
+  if ((newLevel != level && pendingLevelMs >= levelHoldMs) || !levelShown) {
     level = newLevel;
+    pendingLevelMs = 0;
     ApplyLevel();
   }
 }
